@@ -53,6 +53,7 @@ coverage.xml
 *.py,cover
 .pytest_cache/
 pytestdebug.log
+kyc.db
 
 # Type Checking
 .mypy_cache/
