@@ -7,14 +7,30 @@ class KYC(Base):
     __tablename__ = "kyc"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    # OCR extracted identity info
     full_name = Column(String)
     dob = Column(String)
     id_number = Column(String)
 
+    # Upload files
     selfie_path = Column(String)
     id_path = Column(String)
 
+    # Cropped face from id path
+    cropped_face_path = Column(String)
+
+    # Verification metrics
     match_score = Column(Float)
+
+    # Flags
     verified = Column(Boolean, default=False)
+    liveness_passed = Column(Boolean, default=False)
+    review_required = Column(Boolean, default=False)
+
+    # status tracking
+    status = Column(String, default="pending")
+    failure_reason = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
