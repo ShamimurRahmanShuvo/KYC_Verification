@@ -6,15 +6,19 @@ This service allows users to upload:
 - A government-issued ID image
 
 The system then:
-1. Extracts text from the ID using OCR
-2. Compares the face on the ID with the uploaded selfie
-3. Generates a match score
-4. Marks verification status (`verified` if score >= threshold)
-5. Stores results in SQLite
+User uploads a selfie photo
+1. User uploads a government-issued ID 
+2. Detects and crops face from the ID card 
+3. Compares selfie vs ID face using facial recognition 
+4. Performs liveness detection to reduce spoofing attempts 
+5. Extracts ID data using OCR (Name, DOB, ID Number)
+6. Generates match score and verification result 
+7. Stores records securely in database
 ---
 
 # Tech Stack
 - FastAPI
+- Python
 - SQLite
 - SQLAlchemy
 - DeepFace
@@ -22,10 +26,11 @@ The system then:
 - Tesseract OCR
 - Pydantic
 - Uvicorn
+- REST APIs
 ---
 
 # Features
-- Face verification (Selfie vs ID)
+- Face verification (Selfie vs ID (Cropped image))
 - OCR extraction from ID card
 - SQLite local database
 - REST API with Swagger docs
@@ -51,6 +56,8 @@ Windows
 3. Install Dependencies
 - pip install -r requirements.txt
 - Install Tesseract OCR
+- Install mediapipe
+- Install mtcnn
 
 macOS
 
@@ -62,13 +69,15 @@ Ubuntu
 Windows
 - Install from official binary package.
 
-Run Application
+**Run Application**
+
 python run.py
 
 or
 
 uvicorn app.main:app --reload
-API Documentation
+
+**API Documentation**
 
 Swagger UI:
 
@@ -77,7 +86,8 @@ http://localhost:8000/docs
 ReDoc:
 
 http://localhost:8000/redoc
-API Endpoints
+
+**API Endpoints**
 POST /kyc/verify
 
 Upload selfie and ID card for verification.
@@ -87,11 +97,15 @@ Example Response
 {
   "kyc_id": 1,
   "verified": true,
-  "match_score": 91.7,
+  "match_score": 83.46,
+  "liveness": true,
+  "review_required": false,
+  "status": "verified",
+  "failure_reason": None,
   "data": {
-    "name": "John Smith",
-    "dob": "1992-05-12",
-    "id_number": "A123456"
+    "name": "Md Shamimur Rahman Shuvo",
+    "dob": "28th August ...",
+    "idn": "123456789"
   }
 }
 
@@ -115,13 +129,10 @@ Threshold can be customized.
 Current version compares:
 
 - Selfie image
-- Full ID card image
+- Cropped image from ID card
 
 # Recommended production upgrade:
 
-Detect face on ID
-Crop face region
-Compare cropped face vs selfie
 Security Recommendations
 
 # For real production use:
@@ -153,7 +164,8 @@ Ensure image contains visible face.
 NumPy Dependency Conflict
 pip install numpy==1.26.4
 # Future Improvements
-- Liveness Detection
+- Blink Detection
+- Head Turn Challenge
 - Anti-spoofing
 - Passport MRZ Parsing
 - Multi-language OCR
