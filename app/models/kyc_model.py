@@ -12,6 +12,8 @@ class KYC(Base):
     full_name = Column(String)
     dob = Column(String)
     id_number = Column(String)
+    document_type = Column(String, default="government_id")
+    country = Column(String, default="unknown")
 
     # Upload files
     selfie_path = Column(String)
@@ -28,9 +30,14 @@ class KYC(Base):
     liveness_passed = Column(Boolean, default=False)
     review_required = Column(Boolean, default=False)
 
-    # status tracking
+    # Status tracking
     status = Column(String, default="pending")
     failure_reason = Column(String, nullable=True)
+
+    # Admin review
+    admin_notes = Column(String)
+    reviewed_by = Column(String)
+    reviewed_at = Column(DateTime)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

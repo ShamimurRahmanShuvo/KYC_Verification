@@ -20,6 +20,13 @@ def get_db():
         db.close()
 
 
+def save_upload(file):
+    path = f"uploads/{uuid.uuid4()}_{file.filename}"
+    with open(path, "wb") as f:
+        f.write(file.file.read())
+    return path
+
+
 @router.post("/verify")
 def verify_kyc(
         selfie: UploadFile = File(...),
@@ -92,13 +99,27 @@ def verify_kyc(
         "verified": verified,
         "match_score": result["score"],
         "liveness": True,
-        "review_required":review_required,
-        "status":status,
-        "failure_reason":failure_reason,
+        "review_required": review_required,
+        "status": status,
+        "failure_reason": failure_reason,
         "data": ocr_data
     }
 
 
-@router.get("/records")
-def list_records(db: Session = Depends(get_db)):
-    return db.query(KYC).all()
+@router.get("/{kyc_id}")
+def get_kyc_by_id(kyc_id: int, db: Session=Depends(get_db)):
+    row = db.query(KYC).filter(KYC.id == kyc_id).first()
+
+    if not row:
+        return {"error": f"{kyc_id} not found"}
+
+    return row
+
+
+@router.get("/queue/manual-review")
+def manual_review_queue(db: Session=Depends(get_db)):
+    rows = db.query(KYC).filter(
+        KYC.status == "manual_review"
+    ).all()
+
+    return rows
