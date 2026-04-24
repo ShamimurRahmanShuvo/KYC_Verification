@@ -2,8 +2,8 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 import uuid
 
-from app.core.database import SessionLocal
-from app.models.kyc_model import KYC
+from app.core.database import get_db, get_engine, get_session_factory, init_db, Base
+from app.models.kyc_model import User, Role, UserRole, KYCApplication
 from app.services.storage_services import save_upload
 from app.services.face_services import crop_face_from_image, compare_faces
 from app.services.liveness_services import check_liveness
@@ -12,12 +12,7 @@ from app.services.ocr_services import extract_kyc_data
 router = APIRouter(prefix="/kyc", tags=["KYC"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+get_db()
 
 
 def save_upload(file):
@@ -75,7 +70,7 @@ def verify_kyc(
 
     # verified = result["score"] >= 75
 
-    row = KYC(
+    row = KYCApplication(
         full_name=ocr_data["name"],
         dob=ocr_data["dob"],
         id_number=ocr_data["idn"],
@@ -107,8 +102,8 @@ def verify_kyc(
 
 
 @router.get("/{kyc_id}")
-def get_kyc_by_id(kyc_id: int, db: Session=Depends(get_db)):
-    row = db.query(KYC).filter(KYC.id == kyc_id).first()
+def get_kyc_by_id(kyc_id: int, db: Session=Depends(get_db())):
+    row = db.query(KYCApplication).filter(KYCApplication.id == kyc_id).first()
 
     if not row:
         return {"error": f"{kyc_id} not found"}
@@ -117,9 +112,9 @@ def get_kyc_by_id(kyc_id: int, db: Session=Depends(get_db)):
 
 
 @router.get("/queue/manual-review")
-def manual_review_queue(db: Session=Depends(get_db)):
-    rows = db.query(KYC).filter(
-        KYC.status == "manual_review"
+def manual_review_queue(db: Session=Depends(get_db())):
+    rows = db.query(KYCApplication).filter(
+        KYCApplication.status == "manual_review"
     ).all()
 
     return rows
