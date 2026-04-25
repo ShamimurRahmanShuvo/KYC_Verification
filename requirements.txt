@@ -10,9 +10,10 @@ deepface
 pillow
 pytesseract
 python-dotenv
-mtcnn
 opencv-python
 deepface
 numpy
 mediapipe
 cryptography
+dlib
+face_recognition

@@ -1,11 +1,24 @@
 import cv2
-from deepface import DeepFace
-from mtcnn import MTCNN
-
-detector = MTCNN()
+import face_recognition
 
 
-def crop_face_from_image(image_path, save_path):
+def detect_face(image_path):
+    image = face_recognition.load_image_file(image_path)
+    locations = face_recognition.face_locations(image)
+    return len(locations) > 0
+
+
+def ensure_single_face(image_path):
+    image = face_recognition.load_image_file(image_path)
+    locations = face_recognition.face_locations(image)
+    if len(locations) == 0:
+        raise Exception("No face detected")
+    elif len(locations) > 1:
+        raise Exception("Multiple faces detected")
+    return True
+
+
+def crop_face_from_document(image_path, save_path):
     image = cv2.imread(image_path)
 
     if image is None:
@@ -30,16 +43,34 @@ def crop_face_from_image(image_path, save_path):
     return save_path
 
 
-def compare_faces(selfie_path, cropped_face_path):
-    result = DeepFace.verify(
-        img1_path=selfie_path,
-        img2_path=cropped_face_path,
-        enforce_detection=False
-    )
+def compare_faces(selfie_path, document_image_path):
+    selfie_image = face_recognition.load_image_file(selfie_path)
+    document_image = face_recognition.load_image_file(document_image_path)
 
-    score = round((1 - result["distance"]) * 100, 2)
+    selfie_encodings = face_recognition.face_encodings(selfie_image)
+    document_encodings = face_recognition.face_encodings(document_image)
 
-    return {
-        "verified": result["verified"],
-        "score": score
-    }
+    if not selfie_encodings:
+        raise Exception("No face detected in selfie")
+    if not document_encodings:
+        raise Exception("No face detected in document")
+
+    selfie_encoding = selfie_encodings[0]
+    document_encoding = document_encodings[0]
+
+    results = face_recognition.face_distance([document_encoding[0]], selfie_encoding[0])[0]
+    score = (1 - results) * 100  # Convert distance to a percentage score
+    return round(score, 2)
+
+
+def generate_face_score(selfie_path, document_image_path):
+    try:
+        ensure_single_face(selfie_path)
+        ensure_single_face(document_image_path)
+
+        cropped_document_face = crop_face_from_document(document_image_path, "cropped_face.jpg")
+        score = compare_faces(selfie_path, cropped_document_face)
+
+        return score
+    except Exception as e:
+        raise Exception(f"Face comparison failed: {str(e)}")
