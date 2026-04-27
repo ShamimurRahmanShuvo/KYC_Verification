@@ -1,4 +1,6 @@
 # Pre-checks image and video quality before validation
+from typing import Tuple
+
 import cv2
 import numpy as np
 
@@ -27,7 +29,7 @@ def detect_document_edges(image_path: str) -> bool:
     return len(contours) > 0  # Return True if document edges are detected
 
 
-def validate_selfie_quality(image_path: str) -> (tuple[bool, str]):
+def validate_selfie_quality(image_path: str) -> Tuple[bool, str]:
     blur = detect_blur(image_path)
 
     if blur < 80:
@@ -36,7 +38,7 @@ def validate_selfie_quality(image_path: str) -> (tuple[bool, str]):
     return True, "Selfie quality is acceptable."
 
 
-def validate_document_quality(image_path: str) -> (tuple[bool, str]):
+def validate_document_quality(image_path: str) -> Tuple[bool, str]:
     blur = detect_blur(image_path)
     glare = detect_glare(image_path)
     edges = detect_document_edges(image_path)

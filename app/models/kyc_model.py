@@ -88,10 +88,11 @@ class KYCApplication(Base):
 
     user = relationship("User", back_populates="kyc_cases")
     documents = relationship("Document", back_populates="application")
-    frauds = relationship("FraudEvent", back_populates="application")
+    fraud_events = relationship("FraudEvent", back_populates="application", cascade="all, delete-orphan")
     biometric_sessions = relationship("BiometricSession", back_populates="application")
     decisions = relationship("DecisionLog", back_populates="application")
     reviews = relationship("AdminReview", back_populates="application")
+    audit_logs = relationship("AuditLog", back_populates="application")
 
 
 # Document model for storing KYC documents
@@ -219,6 +220,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(Integer, ForeignKey("kyc_applications.id"))
     actor_user_id = Column(Integer, nullable=True)
 
     action = Column(String(50))  # e.g., "login", "submit_case", "approve_case", "decision_made", "review_performed"

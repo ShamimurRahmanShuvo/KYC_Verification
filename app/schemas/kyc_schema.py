@@ -49,6 +49,10 @@ class RoleResponse(BaseModel):
         orm_mode = True
 
 
+class RoleRequest(BaseModel):
+    name: str = Field(..., min_length=3, max_length=50)
+
+
 # KYC Application Schemas
 class CreateKYCCaseRequest(BaseModel):
     country: Optional[str] = None
@@ -68,7 +72,7 @@ class KYCCaseResponse(BaseModel):
 
 class KYCDetailResponse(KYCCaseResponse):
     id: int
-    case_reference = str
+    case_reference: str
     status: str
 
     face_score: float
@@ -81,12 +85,10 @@ class KYCDetailResponse(KYCCaseResponse):
     decision_source: Optional[str]
     model_version: Optional[str]
 
-    retry_count = int
     submitted_at: Optional[datetime] = None
     reviewed_at: Optional[datetime] = None
 
-    created_at = datetime
-    updated_at = datetime
+    updated_at: datetime
 
     class Config:
         orm_mode = True
@@ -207,8 +209,11 @@ class SearchCaseResponse(BaseModel):
 
 
 # Paginated List Schemas
-class PaginationMeta:
-    pass
+class PaginationMeta(BaseModel):
+    page: int
+    size: int
+    total: int
+    total_pages: int
 
 
 class PaginatedKYCResponse(BaseModel):
