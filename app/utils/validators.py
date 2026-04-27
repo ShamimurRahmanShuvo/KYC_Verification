@@ -2,7 +2,7 @@
 import os
 
 
-ALLOWED_IMAGE_TYPES = [".jpeg", ".png", ".gif"]
+ALLOWED_IMAGE_TYPES = [".jpeg", ".png", ".gif", ".jpg"]
 ALLOWED_VIDEO_TYPES = [".mp4", ".avi", ".mov", ".mkv"]
 
 

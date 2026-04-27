@@ -7,7 +7,8 @@ UPLOAD_DIR = "uploads"
 
 
 def save_uploads(file, folder="temp"):
-    if not os.path.exists(UPLOAD_DIR):
+    full_dir = os.path.join(UPLOAD_DIR, folder)
+    if not os.path.exists(full_dir):
         os.makedirs(f"{UPLOAD_DIR}/{folder}", exist_ok=True)
 
     unique_id = str(uuid4())

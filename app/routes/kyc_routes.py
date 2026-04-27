@@ -14,6 +14,7 @@ from app.services.face_services import compare_faces
 from app.services.liveness_services import combined_liveness_score
 from app.services.fraud_services import calculate_fraud_score
 from app.services.decision_services import evaluate_case
+from app.utils.case_reference import generate_case_reference
 
 router = APIRouter(prefix="/kyc", tags=["KYC"])
 
@@ -23,6 +24,8 @@ def create_kyc_case(request: CreateKYCCaseRequest, current_user=Depends(get_curr
     kyc_case = KYCApplication(
         user_id=current_user.id,
         status="pending",
+        case_reference=generate_case_reference(),
+        decision_source="system",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -31,11 +34,11 @@ def create_kyc_case(request: CreateKYCCaseRequest, current_user=Depends(get_curr
     db.commit()
     db.refresh(kyc_case)
 
-    return KYCCaseResponse(id=kyc_case.id, status=kyc_case.status)
+    return kyc_case
 
 
 @router.post("/{kyc_id}/upload-document/front-id", response_model=DocumentUploadResponse)
-def upload_front_id(kyc_id: int, file: UploadFile = File(...),
+def upload_front_id(kyc_id: int, file: UploadFile = File(...), document_type: str = "front_id",
                     current_user=Depends(get_current_user), db: Session=Depends(get_db)):
     path = save_uploads(file, f"kyc/{kyc_id}/front_id")
 
@@ -44,12 +47,13 @@ def upload_front_id(kyc_id: int, file: UploadFile = File(...),
         raise HTTPException(status_code=400, detail=f"Document quality issue: {message}")
 
     extracted_data = process_front_document(path)
+    print(f"Extracted data from front ID: {extracted_data}")
 
     doc = Document(
-        kyc_id=kyc_id,
-        type="front_id",
-        path=path,
-        extracted_data=extracted_data,
+        application_id=kyc_id,
+        side="front_id",
+        document_type=document_type,
+        file_path=path,
         created_at=datetime.utcnow()
     )
 
@@ -57,11 +61,13 @@ def upload_front_id(kyc_id: int, file: UploadFile = File(...),
     db.commit()
     db.refresh(doc)
 
-    return DocumentUploadResponse(document_id=doc.id, message="Front ID uploaded and processed successfully")
+    return DocumentUploadResponse(document_id=doc.id,
+                                  side="front_id",
+                                  message="Front ID uploaded and processed successfully")
 
 
 @router.post("/{kyc_id}/upload-document/back-id", response_model=DocumentUploadResponse)
-def upload_back_id(kyc_id: int, file: UploadFile = File(...),
+def upload_back_id(kyc_id: int, file: UploadFile = File(...), document_type: str = "back_id",
                    current_user=Depends(get_current_user), db: Session=Depends(get_db)):
     path = save_uploads(file, f"kyc/{kyc_id}/back_id")
 
@@ -70,12 +76,13 @@ def upload_back_id(kyc_id: int, file: UploadFile = File(...),
         raise HTTPException(status_code=400, detail=f"Document quality issue: {message}")
 
     extracted_data = process_back_document(path)
+    print(f"Extracted data from back ID: {extracted_data}")
 
     doc = Document(
-        kyc_id=kyc_id,
-        type="back_id",
-        path=path,
-        extracted_data=extracted_data,
+        application_id=kyc_id,
+        side="back_id",
+        document_type=document_type,
+        file_path=path,
         created_at=datetime.utcnow()
     )
 
@@ -83,7 +90,9 @@ def upload_back_id(kyc_id: int, file: UploadFile = File(...),
     db.commit()
     db.refresh(doc)
 
-    return DocumentUploadResponse(document_id=doc.id, message="Back ID uploaded and processed successfully")
+    return DocumentUploadResponse(document_id=doc.id,
+                                  side="back-id",
+                                  message="Back ID uploaded and processed successfully")
 
 
 @router.post("/{kyc_id}/upload-selfie", response_model=DocumentUploadResponse)

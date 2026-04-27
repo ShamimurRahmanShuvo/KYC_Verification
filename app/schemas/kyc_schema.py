@@ -98,7 +98,6 @@ class KYCDetailResponse(KYCCaseResponse):
 class DocumentUploadResponse(BaseModel):
     document_id: int
     side: str
-    file_path: str
     message: str
 
 
