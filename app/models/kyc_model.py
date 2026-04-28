@@ -51,6 +51,7 @@ class UserRole(Base):
         UniqueConstraint("user_id", "role_id", name="uix_user_role"),
     )
 
+
 # KYC Application model
 class KYCApplication(Base):
     __tablename__ = "kyc_applications"

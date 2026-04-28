@@ -97,7 +97,6 @@ class KYCDetailResponse(KYCCaseResponse):
 # Document Schemas
 class DocumentUploadResponse(BaseModel):
     document_id: int
-    side: str
     message: str
 
 

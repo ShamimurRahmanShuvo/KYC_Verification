@@ -10,7 +10,7 @@ from app.schemas.kyc_schema import CreateKYCCaseRequest, KYCCaseResponse, Docume
 from app.services.storage_services import save_uploads
 from app.services.capture_quality_services import validate_selfie_quality, validate_document_quality
 from app.services.document_services import process_front_document, process_back_document
-from app.services.face_services import compare_faces
+from app.services.face_services import generate_face_score
 from app.services.liveness_services import combined_liveness_score
 from app.services.fraud_services import calculate_fraud_score
 from app.services.decision_services import evaluate_case
@@ -62,7 +62,6 @@ def upload_front_id(kyc_id: int, file: UploadFile = File(...), document_type: st
     db.refresh(doc)
 
     return DocumentUploadResponse(document_id=doc.id,
-                                  side="front_id",
                                   message="Front ID uploaded and processed successfully")
 
 
@@ -91,7 +90,6 @@ def upload_back_id(kyc_id: int, file: UploadFile = File(...), document_type: str
     db.refresh(doc)
 
     return DocumentUploadResponse(document_id=doc.id,
-                                  side="back-id",
                                   message="Back ID uploaded and processed successfully")
 
 
@@ -105,7 +103,7 @@ def upload_selfie(kyc_id: int, file: UploadFile = File(...),
         raise HTTPException(status_code=400, detail=f"Selfie quality issue: {message}")
 
     bio = BiometricSession(
-        kyc_id=kyc_id,
+        application_id=kyc_id,
         session_reference=str(uuid4()),
         capture_type="selfie",
         selfie_path=path,
@@ -116,25 +114,31 @@ def upload_selfie(kyc_id: int, file: UploadFile = File(...),
     db.commit()
     db.refresh(bio)
 
-    return DocumentUploadResponse(document_id=kyc_id.id, message="Selfie uploaded and processed successfully")
+    return DocumentUploadResponse(document_id=bio.id, message="Selfie uploaded and processed successfully")
 
 
 @router.post("/{kyc_id}/evaluate")
-def evaluate_kyc_case(kyc_id: int, request:Request, db: Session=Depends(get_db)):
+def evaluate_kyc_case(kyc_id: int, request: Request, db: Session = Depends(get_db)):
     kyc_case = db.query(KYCApplication).filter(KYCApplication.id == kyc_id).first()
 
     if not kyc_case:
         raise HTTPException(status_code=404, detail="KYC case not found")
 
-    documents = db.query(Document).filter(Document.kyc_id == kyc_id).all()
-    selfie = db.query(BiometricSession).filter(BiometricSession.kyc_id == kyc_id,
-                                               BiometricSession.capture_type == "selfie").first()
+    document = db.query(Document).filter(
+        Document.application_id == kyc_id,
+        Document.document_type == "front_id").first()
 
-    if not documents or not selfie:
+    selfie = db.query(BiometricSession).filter(BiometricSession.application_id == kyc_id,
+                                               BiometricSession.capture_type == "selfie"
+                                               ).first()
+    video = db.query(BiometricSession).filter(BiometricSession.application_id == kyc_id,
+                                              BiometricSession.capture_type == "video").first()
+
+    if not document or not selfie:
         raise HTTPException(status_code=400, detail="Missing required documents or selfie for evaluation")
 
-    face = compare_faces(documents[0].path, selfie.selfie_path)
-    liveness_score = combined_liveness_score(selfie.selfie_path)
+    face = generate_face_score(selfie.selfie_path, document.file_path)
+    liveness_score = combined_liveness_score(selfie.selfie_path, video.video_path if video else None)
     fraud_score = calculate_fraud_score(ip_address=request.client.host,
                                         device_id=request.headers.get("X-Device-ID", "unknown"),
                                         location=request.headers.get("X-Location", "unknown"))
@@ -147,8 +151,8 @@ def evaluate_kyc_case(kyc_id: int, request:Request, db: Session=Depends(get_db))
     kyc_case.document_score = doc_score
     kyc_case.fraud_score = fraud_score
     kyc_case.overall_score = result["overall_score"]
-    kyc_case.status = result["decision"]
-    kyc_case.reason_code = result["reason_code"]
+    kyc_case.status = result["decision_state"]
+    kyc_case.reason_code = result["reason_codes"]
     kyc_case.submitted_at = datetime.utcnow()
 
     db.commit()

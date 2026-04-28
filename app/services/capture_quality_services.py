@@ -30,6 +30,16 @@ def detect_document_edges(image_path: str) -> bool:
 
 
 def validate_selfie_quality(image_path: str) -> Tuple[bool, str]:
+    img = cv2.imread(image_path)
+
+    if img is None:
+        return False, "Invalid image. Please retake the selfie."
+
+    h, w = img.shape[:2]
+
+    if w < 250 or h < 250:
+        return False, "Image resolution is too low. Please retake the selfie with a higher resolution."
+
     blur = detect_blur(image_path)
 
     if blur < 80:

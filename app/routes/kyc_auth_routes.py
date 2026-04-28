@@ -44,7 +44,7 @@ def register_user(request: RegisterRequest, db: Session = Depends(get_db)):
         "id": user.id,
         "username": user.username,
         "email": user.email,
-        "roles": [role.name for role in user.roles]
+        "roles": [role.names for role in user.roles]
     }
 
 
@@ -68,7 +68,7 @@ def login_user(request: OAuth2PasswordRequestForm = Depends(), db: Session = Dep
 @router.get("/me", response_model=CurrentUserResponse)
 def get_current_user_info(current_user=Depends(get_current_user)):
     roles = [
-        x.role.name for x in current_user.roles
+        x.roles.name for x in current_user.roles
     ]
 
     return {
@@ -81,7 +81,7 @@ def get_current_user_info(current_user=Depends(get_current_user)):
 
 @router.post("/create-role", response_model=RoleRequest)
 def create_role(request: RoleRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    if "admin" not in [x.role.name for x in current_user.roles]:
+    if "admin" not in [x.roles.name for x in current_user.roles]:
         raise HTTPException(status_code=403, detail="Only admins can create roles")
 
     existing_role = db.query(Role).filter(Role.name == request.name).first()
