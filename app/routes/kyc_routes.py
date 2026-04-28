@@ -20,7 +20,8 @@ router = APIRouter(prefix="/kyc", tags=["KYC"])
 
 
 @router.post("/create-kyc", response_model=KYCCaseResponse)
-def create_kyc_case(request: CreateKYCCaseRequest, current_user=Depends(get_current_user), db: Session=Depends(get_db)):
+def create_kyc_case(request: CreateKYCCaseRequest,
+                    current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     kyc_case = KYCApplication(
         user_id=current_user.id,
         status="pending",
@@ -39,7 +40,7 @@ def create_kyc_case(request: CreateKYCCaseRequest, current_user=Depends(get_curr
 
 @router.post("/{kyc_id}/upload-document/front-id", response_model=DocumentUploadResponse)
 def upload_front_id(kyc_id: int, file: UploadFile = File(...), document_type: str = "front_id",
-                    current_user=Depends(get_current_user), db: Session=Depends(get_db)):
+                    current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     path = save_uploads(file, f"kyc/{kyc_id}/front_id")
 
     ok, message = validate_document_quality(path)
@@ -67,7 +68,7 @@ def upload_front_id(kyc_id: int, file: UploadFile = File(...), document_type: st
 
 @router.post("/{kyc_id}/upload-document/back-id", response_model=DocumentUploadResponse)
 def upload_back_id(kyc_id: int, file: UploadFile = File(...), document_type: str = "back_id",
-                   current_user=Depends(get_current_user), db: Session=Depends(get_db)):
+                   current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     path = save_uploads(file, f"kyc/{kyc_id}/back_id")
 
     ok, message = validate_document_quality(path)
@@ -95,7 +96,7 @@ def upload_back_id(kyc_id: int, file: UploadFile = File(...), document_type: str
 
 @router.post("/{kyc_id}/upload-selfie", response_model=DocumentUploadResponse)
 def upload_selfie(kyc_id: int, file: UploadFile = File(...),
-                   current_user=Depends(get_current_user), db: Session=Depends(get_db)):
+                  current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     path = save_uploads(file, f"kyc/{kyc_id}/selfie")
 
     ok, message = validate_selfie_quality(path)
@@ -115,6 +116,26 @@ def upload_selfie(kyc_id: int, file: UploadFile = File(...),
     db.refresh(bio)
 
     return DocumentUploadResponse(document_id=bio.id, message="Selfie uploaded and processed successfully")
+
+
+@router.post("/{kyc_id}/upload-video", response_model=DocumentUploadResponse)
+def upload_video(kyc_id: int, file: UploadFile = File(...),
+                 current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    path = save_uploads(file, f"kyc/{kyc_id}/video")
+
+    bio = BiometricSession(
+        application_id=kyc_id,
+        session_reference=str(uuid4()),
+        capture_type="video",
+        video_path=path,
+        created_at=datetime.utcnow()
+    )
+
+    db.add(bio)
+    db.commit()
+    db.refresh(bio)
+
+    return DocumentUploadResponse(document_id=bio.id, message="Video uploaded and processed successfully")
 
 
 @router.post("/{kyc_id}/evaluate")
@@ -161,7 +182,7 @@ def evaluate_kyc_case(kyc_id: int, request: Request, db: Session = Depends(get_d
 
 
 @router.get("/{kyc_id}")
-def get_kyc_by_id(kyc_id: int, db: Session=Depends(get_db)):
+def get_kyc_by_id(kyc_id: int, db: Session = Depends(get_db)):
     row = db.query(KYCApplication).filter(KYCApplication.id == kyc_id).first()
 
     if not row:
@@ -171,7 +192,7 @@ def get_kyc_by_id(kyc_id: int, db: Session=Depends(get_db)):
 
 
 @router.post("/{kyc_id}/retry}")
-def retry_kyc_evaluation(kyc_id: int, db: Session=Depends(get_db)):
+def retry_kyc_evaluation(kyc_id: int, db: Session = Depends(get_db)):
     kyc_case = db.query(KYCApplication).filter(KYCApplication.id == kyc_id).first()
 
     if not kyc_case:
@@ -185,7 +206,7 @@ def retry_kyc_evaluation(kyc_id: int, db: Session=Depends(get_db)):
 
 
 @router.get("/queue/manual-review")
-def manual_review_queue(db: Session=Depends(get_db)):
+def manual_review_queue(db: Session = Depends(get_db)):
     rows = db.query(KYCApplication).filter(
         KYCApplication.status == "manual_review"
     ).all()
