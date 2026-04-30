@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.core.database import Base, get_engine
 from app.core.auth import create_demo_admin
 
@@ -15,6 +17,20 @@ def create_app() -> FastAPI:
         description="A simple KYC API built with FastAPI and SQLAlchemy",
         docs_url="/docs",
         redoc_url="/redoc"
+    )
+
+    origins = [
+        "http://localhost:5137",  # Your current port
+        "http://127.0.0.1:5137",  # IP equivalent
+        "http://localhost:5173",  # Vite default (just in case)
+    ]
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     app.include_router(health_router)
