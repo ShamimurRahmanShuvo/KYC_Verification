@@ -1,12 +1,24 @@
 import os
 import cv2
 import uuid
-import face_recognition
 import numpy as np
-from mtcnn import MTCNN
 from PIL import Image, ImageOps
 
-detector = MTCNN()
+face_recognition = None
+try:
+    import face_recognition
+except ImportError:
+    face_recognition = None
+
+try:
+    from mtcnn import MTCNN
+except ImportError:
+    MTCNN = None
+
+if MTCNN is not None:
+    detector = MTCNN()
+else:
+    detector = None
 
 CROP_DIR = "uploads/kyc/cropped_faces"
 os.makedirs(CROP_DIR, exist_ok=True)
@@ -22,11 +34,27 @@ def load_rgb_image(image_path):
         raise Exception(f"Error loading image with EXIF fix: {str(e)}")
 
 
+def ensure_face_recognition_available():
+    if face_recognition is None:
+        raise RuntimeError(
+            "The face_recognition library is not installed. Install it to enable face matching and face detection features."
+        )
+
+
+def ensure_mtcnn_available():
+    if detector is None:
+        raise RuntimeError(
+            "The mtcnn library is not installed. Install it to enable document face cropping."
+        )
+
+
 def detect_face_locations_with_rotation(rgb):
     """
     Try face detection in multiple orientations to handle cases where the image might be rotated.
     0, 90, 180, 270 degrees.
     """
+    ensure_face_recognition_available()
+
     rotations = [
         rgb,
         cv2.rotate(rgb, cv2.ROTATE_90_CLOCKWISE),
@@ -65,6 +93,11 @@ def detect_face(image_path):
 
 
 def crop_face_from_document(document_path):
+    if detector is None:
+        raise RuntimeError(
+            "The mtcnn library is not installed. Install it to enable document face cropping."
+        )
+
     image = cv2.imread(document_path)
 
     if image is None:
@@ -95,6 +128,8 @@ def crop_face_from_document(document_path):
 
 
 def get_face_encodings(image_path):
+    ensure_face_recognition_available()
+
     rgb = load_rgb_image(image_path)
 
     rotated_img, locations = detect_face_locations_with_rotation(rgb)
@@ -108,6 +143,8 @@ def get_face_encodings(image_path):
 
 
 def compare_faces(selfie_path, cropped_document_face_path):
+    ensure_face_recognition_available()
+
     selfie_encoding = get_face_encodings(selfie_path)
     document_encoding = get_face_encodings(cropped_document_face_path)
 

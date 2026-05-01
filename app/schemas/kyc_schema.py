@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -6,6 +6,9 @@ from datetime import datetime
 # Common / Base Schemas
 class MessageResponse(BaseModel):
     message: str
+
+    class Config:
+        from_attributes = True
 
 
 class PaginationResponse(BaseModel):
@@ -39,13 +42,17 @@ class CurrentUserResponse(BaseModel):
     email: Optional[EmailStr] = None
     roles: List[str]
 
+    class Config:
+        from_attributes = True
+
 
 # Role Schemas
 class RoleResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     name: str
+
+    class Config:
+        from_attributes = True
 
 
 class RoleRequest(BaseModel):
@@ -59,18 +66,17 @@ class CreateKYCCaseRequest(BaseModel):
 
 
 class KYCCaseResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     case_reference: str
     status: str
     retry_count: int
     created_at: datetime
 
+    class Config:
+        from_attributes = True
+
 
 class KYCDetailResponse(KYCCaseResponse):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     case_reference: str
     status: str
@@ -98,8 +104,6 @@ class DocumentUploadResponse(BaseModel):
 
 
 class DocumentResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     side: str
     document_type: Optional[str] = None
@@ -109,6 +113,9 @@ class DocumentResponse(BaseModel):
     extracted_dob: Optional[datetime] = None
     extracted_id_number: Optional[str] = None
     extracted_expiry_date: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 # Biometric / Selfie / Video Schemas
@@ -123,8 +130,6 @@ class VideoUploadResponse(BaseModel):
 
 
 class BiometricSessionResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     session_reference: str
     capture_type: str
@@ -137,6 +142,9 @@ class BiometricSessionResponse(BaseModel):
     challenge_result: Optional[str] = None
 
     created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 #  Verification / Review Schemas
@@ -190,14 +198,15 @@ class SearchCasesRequest(BaseModel):
 
 
 class SearchCaseResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     case_reference: str
     username: Optional[str]
     status: str
     overall_score: float
     created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # Paginated List Schemas
@@ -220,8 +229,6 @@ class PaginatedSearchResponse(BaseModel):
 
 # Decion History Schemas
 class DecisionLogResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     decision: str
     reason_codes: Optional[str]
@@ -236,11 +243,12 @@ class DecisionLogResponse(BaseModel):
     decided_by: str
     created_at: datetime
 
+    class Config:
+        from_attributes = True
+
 
 # Audit Logs
 class AuditLogResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     actor_user_id: Optional[int]
     action: str
@@ -250,16 +258,20 @@ class AuditLogResponse(BaseModel):
     details: Optional[str]
     created_at: datetime
 
+    class Config:
+        from_attributes = True
+
 
 # Fraud Detection Schemas
 class FraudEventResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
     id: int
     event_type: str
     risk_score: float
     description: Optional[str]
     created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # Health Check Schemas

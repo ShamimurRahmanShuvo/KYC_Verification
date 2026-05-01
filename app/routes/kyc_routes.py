@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.kyc_model import KYCApplication, Document, BiometricSession
 from app.schemas.kyc_schema import CreateKYCCaseRequest, KYCCaseResponse, DocumentUploadResponse
-from app.services.storage_services import save_uploads
+from app.services.storage_services import save_temp_file, move_file, delete_file
 from app.services.capture_quality_services import validate_selfie_quality, validate_document_quality
 from app.services.document_services import process_front_document, process_back_document
 from app.services.face_services import generate_face_score
@@ -41,26 +41,43 @@ def create_kyc_case(request: CreateKYCCaseRequest,
 @router.post("/{kyc_id}/upload-document/front-id", response_model=DocumentUploadResponse)
 def upload_front_id(kyc_id: int, file: UploadFile = File(...), document_type: str = "front_id",
                     current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    path = save_uploads(file, f"kyc/{kyc_id}/front_id")
+    temp_path = save_temp_file(file)
 
-    ok, message = validate_document_quality(path)
+    ok, message = validate_document_quality(temp_path)
     if not ok:
+        delete_file(temp_path)
         raise HTTPException(status_code=400, detail=f"Document quality issue: {message}")
 
-    extracted_data = process_front_document(path)
+    final_path = move_file(temp_path, f"kyc/{kyc_id}/front_id")
+    extracted_data = process_front_document(final_path)
     print(f"Extracted data from front ID: {extracted_data}")
 
-    doc = Document(
-        application_id=kyc_id,
-        side="front_id",
-        document_type=document_type,
-        file_path=path,
-        created_at=datetime.utcnow()
-    )
-
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
+    existing_doc = db.query(Document).filter_by(application_id=kyc_id, side="front_id").first()
+    if existing_doc:
+        delete_file(existing_doc.file_path)
+        existing_doc.document_type = document_type
+        existing_doc.file_path = final_path
+        existing_doc.extracted_name = extracted_data.get("name")
+        existing_doc.extracted_id_number = extracted_data.get("id_number")
+        existing_doc.extracted_expiry_date = extracted_data.get("expiry")
+        db.add(existing_doc)
+        db.commit()
+        db.refresh(existing_doc)
+        doc = existing_doc
+    else:
+        doc = Document(
+            application_id=kyc_id,
+            side="front_id",
+            document_type=document_type,
+            file_path=final_path,
+            extracted_name=extracted_data.get("name"),
+            extracted_id_number=extracted_data.get("id_number"),
+            extracted_expiry_date=extracted_data.get("expiry"),
+            created_at=datetime.utcnow()
+        )
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
 
     return DocumentUploadResponse(document_id=doc.id,
                                   message="Front ID uploaded and processed successfully")
@@ -69,26 +86,43 @@ def upload_front_id(kyc_id: int, file: UploadFile = File(...), document_type: st
 @router.post("/{kyc_id}/upload-document/back-id", response_model=DocumentUploadResponse)
 def upload_back_id(kyc_id: int, file: UploadFile = File(...), document_type: str = "back_id",
                    current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    path = save_uploads(file, f"kyc/{kyc_id}/back_id")
+    temp_path = save_temp_file(file)
 
-    ok, message = validate_document_quality(path)
+    ok, message = validate_document_quality(temp_path)
     if not ok:
+        delete_file(temp_path)
         raise HTTPException(status_code=400, detail=f"Document quality issue: {message}")
 
-    extracted_data = process_back_document(path)
+    final_path = move_file(temp_path, f"kyc/{kyc_id}/back_id")
+    extracted_data = process_back_document(final_path)
     print(f"Extracted data from back ID: {extracted_data}")
 
-    doc = Document(
-        application_id=kyc_id,
-        side="back_id",
-        document_type=document_type,
-        file_path=path,
-        created_at=datetime.utcnow()
-    )
-
-    db.add(doc)
-    db.commit()
-    db.refresh(doc)
+    existing_doc = db.query(Document).filter_by(application_id=kyc_id, side="back_id").first()
+    if existing_doc:
+        delete_file(existing_doc.file_path)
+        existing_doc.document_type = document_type
+        existing_doc.file_path = final_path
+        existing_doc.extracted_name = extracted_data.get("name")
+        existing_doc.extracted_id_number = extracted_data.get("id_number")
+        existing_doc.extracted_expiry_date = extracted_data.get("expiry")
+        db.add(existing_doc)
+        db.commit()
+        db.refresh(existing_doc)
+        doc = existing_doc
+    else:
+        doc = Document(
+            application_id=kyc_id,
+            side="back_id",
+            document_type=document_type,
+            file_path=final_path,
+            extracted_name=extracted_data.get("name"),
+            extracted_id_number=extracted_data.get("id_number"),
+            extracted_expiry_date=extracted_data.get("expiry"),
+            created_at=datetime.utcnow()
+        )
+        db.add(doc)
+        db.commit()
+        db.refresh(doc)
 
     return DocumentUploadResponse(document_id=doc.id,
                                   message="Back ID uploaded and processed successfully")
@@ -97,23 +131,36 @@ def upload_back_id(kyc_id: int, file: UploadFile = File(...), document_type: str
 @router.post("/{kyc_id}/upload-selfie", response_model=DocumentUploadResponse)
 def upload_selfie(kyc_id: int, file: UploadFile = File(...),
                   current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    path = save_uploads(file, f"kyc/{kyc_id}/selfie")
+    temp_path = save_temp_file(file)
 
-    ok, message = validate_selfie_quality(path)
+    ok, message = validate_selfie_quality(temp_path)
     if not ok:
+        delete_file(temp_path)
         raise HTTPException(status_code=400, detail=f"Selfie quality issue: {message}")
 
-    bio = BiometricSession(
-        application_id=kyc_id,
-        session_reference=str(uuid4()),
-        capture_type="selfie",
-        selfie_path=path,
-        created_at=datetime.utcnow()
-    )
+    final_path = move_file(temp_path, f"kyc/{kyc_id}/selfie")
+    existing_bio = db.query(BiometricSession).filter_by(application_id=kyc_id, capture_type="selfie").first()
 
-    db.add(bio)
-    db.commit()
-    db.refresh(bio)
+    if existing_bio:
+        delete_file(existing_bio.selfie_path)
+        existing_bio.selfie_path = final_path
+        existing_bio.session_reference = str(uuid4())
+        existing_bio.created_at = datetime.utcnow()
+        db.add(existing_bio)
+        db.commit()
+        db.refresh(existing_bio)
+        bio = existing_bio
+    else:
+        bio = BiometricSession(
+            application_id=kyc_id,
+            session_reference=str(uuid4()),
+            capture_type="selfie",
+            selfie_path=final_path,
+            created_at=datetime.utcnow()
+        )
+        db.add(bio)
+        db.commit()
+        db.refresh(bio)
 
     return DocumentUploadResponse(document_id=bio.id, message="Selfie uploaded and processed successfully")
 
@@ -121,19 +168,30 @@ def upload_selfie(kyc_id: int, file: UploadFile = File(...),
 @router.post("/{kyc_id}/upload-video", response_model=DocumentUploadResponse)
 def upload_video(kyc_id: int, file: UploadFile = File(...),
                  current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    path = save_uploads(file, f"kyc/{kyc_id}/video")
+    temp_path = save_temp_file(file)
+    final_path = move_file(temp_path, f"kyc/{kyc_id}/video")
 
-    bio = BiometricSession(
-        application_id=kyc_id,
-        session_reference=str(uuid4()),
-        capture_type="video",
-        video_path=path,
-        created_at=datetime.utcnow()
-    )
-
-    db.add(bio)
-    db.commit()
-    db.refresh(bio)
+    existing_bio = db.query(BiometricSession).filter_by(application_id=kyc_id, capture_type="video").first()
+    if existing_bio:
+        delete_file(existing_bio.video_path)
+        existing_bio.video_path = final_path
+        existing_bio.session_reference = str(uuid4())
+        existing_bio.created_at = datetime.utcnow()
+        db.add(existing_bio)
+        db.commit()
+        db.refresh(existing_bio)
+        bio = existing_bio
+    else:
+        bio = BiometricSession(
+            application_id=kyc_id,
+            session_reference=str(uuid4()),
+            capture_type="video",
+            video_path=final_path,
+            created_at=datetime.utcnow()
+        )
+        db.add(bio)
+        db.commit()
+        db.refresh(bio)
 
     return DocumentUploadResponse(document_id=bio.id, message="Video uploaded and processed successfully")
 

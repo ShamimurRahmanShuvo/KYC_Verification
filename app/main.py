@@ -23,6 +23,10 @@ def create_app() -> FastAPI:
         "http://localhost:5137",  # Your current port
         "http://127.0.0.1:5137",  # IP equivalent
         "http://localhost:5173",  # Vite default (just in case)
+        "http://localhost:5174",  # Previous Vite port
+        "http://127.0.0.1:5174",  # IP equivalent
+        "http://localhost:5175",  # Current Vite port
+        "http://127.0.0.1:5175",  # IP equivalent
     ]
 
     app.add_middleware(

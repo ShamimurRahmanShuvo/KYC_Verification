@@ -34,6 +34,20 @@ def save_temp_file(file):
     return save_uploads(file, folder="temp")
 
 
+def move_file(src_path, folder):
+    final_dir = os.path.join(UPLOAD_DIR, folder)
+    os.makedirs(final_dir, exist_ok=True)
+
+    filename = os.path.basename(src_path)
+    final_path = os.path.join(final_dir, filename)
+
+    if os.path.exists(final_path):
+        os.remove(final_path)
+
+    os.replace(src_path, final_path)
+    return final_path
+
+
 def delete_file(path):
     if path and os.path.exists(path):
         os.remove(path)

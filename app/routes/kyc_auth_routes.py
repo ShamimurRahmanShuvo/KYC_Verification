@@ -34,17 +34,23 @@ def register_user(request: RegisterRequest, db: Session = Depends(get_db)):
 
     for role_name in request.roles:
         role = db.query(Role).filter(Role.name == role_name).first()
-        if role:
-            user_role = UserRole(user_id=user.id, role_id=role.id)
-            db.add(user_role)
+        if not role:
+            role = Role(name=role_name)
+            db.add(role)
+            db.commit()
+            db.refresh(role)
+
+        user_role = UserRole(user_id=user.id, role_id=role.id)
+        db.add(user_role)
 
     db.commit()
+    db.refresh(user)
 
     return {
         "id": user.id,
         "username": user.username,
         "email": user.email,
-        "roles": [role.names for role in user.roles]
+        "roles": [user_role.roles.name for user_role in user.roles]
     }
 
 
