@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from uuid import uuid4
 from datetime import datetime
+from typing import List
 
 from app.core.database import get_db
 from app.core.auth import get_current_user
@@ -22,6 +23,11 @@ router = APIRouter(prefix="/kyc", tags=["KYC"])
 @router.post("/create-kyc", response_model=KYCCaseResponse)
 def create_kyc_case(request: CreateKYCCaseRequest,
                     current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    # Check if user already has a KYC application
+    existing = db.query(KYCApplication).filter_by(user_id=current_user.id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="User already has a KYC application. Use update instead.")
+
     kyc_case = KYCApplication(
         user_id=current_user.id,
         status="pending",
@@ -36,6 +42,12 @@ def create_kyc_case(request: CreateKYCCaseRequest,
     db.refresh(kyc_case)
 
     return kyc_case
+
+
+@router.get("/my-applications", response_model=List[KYCCaseResponse])
+def get_my_kyc_applications(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    applications = db.query(KYCApplication).filter_by(user_id=current_user.id).all()
+    return applications
 
 
 @router.post("/{kyc_id}/upload-document/front-id", response_model=DocumentUploadResponse)
