@@ -75,13 +75,9 @@ def require_role(*allowed_roles: str):
     depends(require_role("admin", "reviewer")) - Allows users with either "admin" or "reviewer" role
     """
     def role_checker(current_user: User = Depends(get_current_user)):
-        user_role = getattr(
-            current_user,
-            "role",
-            None
-        )
+        user_roles = [user_role.roles.name for user_role in current_user.roles if user_role.roles]
 
-        if user_role not in allowed_roles:
+        if not any(role in allowed_roles for role in user_roles):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
         return current_user

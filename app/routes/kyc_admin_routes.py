@@ -6,14 +6,20 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.models.kyc_model import KYCApplication, Document, AdminReview
-from app.schemas.kyc_schema import ReviewRequest, ReviewResponse, KYCDetailResponse
+from app.schemas.kyc_schema import (
+    ReviewRequest,
+    ReviewResponse,
+    KYCDetailResponse,
+    PaginatedKYCApplicationsResponse,
+    AdminKYCItemResponse,
+)
 from app.core.auth import get_current_user, require_role
 from app.utils.pagination import paginate_query
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
-@router.get("/kyc-applications", response_model=List[ReviewResponse])
+@router.get("/kyc-applications", response_model=PaginatedKYCApplicationsResponse)
 def list_kyc_applications(page: int = Query(1, ge=1),
                           size: int = Query(10, ge=1, le=100),
                           db: Session = Depends(get_db),
@@ -23,12 +29,12 @@ def list_kyc_applications(page: int = Query(1, ge=1),
     items, meta = paginate_query(query, page, size)
 
     return {
-        "meta": meta,
+        **meta,
         "items": items
     }
 
 
-@router.get("/kyc-applications/search", response_model=List[ReviewResponse])
+@router.get("/kyc-applications/search", response_model=List[AdminKYCItemResponse])
 def search_kyc_applications(status: str = None, id_number: str = None,
                             db: Session = Depends(get_db),
                             current_user=Depends(require_role("admin", "reviewer"))):
@@ -154,7 +160,7 @@ def reject_kyc(kyc_id: int,
     return review
 
 
-@router.get("/kyc-review-queue", response_model=List[ReviewResponse])
+@router.get("/kyc-review-queue", response_model=List[AdminKYCItemResponse])
 def get_review_queue(db: Session = Depends(get_db),
                      current_user=Depends(require_role("admin", "reviewer"))):
     queue = db.query(KYCApplication).filter(

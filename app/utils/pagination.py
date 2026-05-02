@@ -9,14 +9,11 @@ def paginate_query(query, page: int = 1, page_size: int = 10):
     total_items = query.count()
     offset = (page - 1) * size
 
-    items = query.offset(offset).limit(page_size).all()
+    items = query.offset(offset).limit(size).all()
 
     meta = build_meta(page, size, total_items)
 
-    return {
-        "items": items,
-        "meta": meta
-    }
+    return items, meta
 
 
 def build_meta(page: int, page_size: int, total_items: int):
@@ -24,7 +21,7 @@ def build_meta(page: int, page_size: int, total_items: int):
 
     return {
         "page": page,
-        "page_size": page_size,
-        "total_items": total_items,
+        "size": page_size,
+        "total": total_items,
         "total_pages": total_pages
     }

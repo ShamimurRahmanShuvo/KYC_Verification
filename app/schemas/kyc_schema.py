@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
@@ -16,6 +18,26 @@ class PaginationResponse(BaseModel):
     page: int
     size: int
     total_pages: int
+
+
+class AdminKYCItemResponse(BaseModel):
+    id: int
+    case_reference: str
+    status: str
+    face_score: float
+    liveness_score: float
+    document_score: float
+    fraud_score: float
+    overall_score: float
+    created_at: datetime
+    user_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class PaginatedKYCApplicationsResponse(PaginationResponse):
+    items: List[AdminKYCItemResponse]
 
 
 # AUTHENTICATION SCHEMAS
@@ -39,7 +61,7 @@ class TokenResponse(BaseModel):
 class CurrentUserResponse(BaseModel):
     id: int
     username: str
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     roles: List[str]
 
     class Config:
@@ -57,6 +79,17 @@ class RoleResponse(BaseModel):
 
 class RoleRequest(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 # KYC Application Schemas
@@ -95,6 +128,9 @@ class KYCDetailResponse(KYCCaseResponse):
     reviewed_at: Optional[datetime] = None
 
     updated_at: datetime
+    user: UserResponse
+    documents: Optional[List[DocumentResponse]] = None
+    biometric_sessions: Optional[List[BiometricSessionResponse]] = None
 
 
 # Document Schemas
@@ -108,11 +144,17 @@ class DocumentResponse(BaseModel):
     side: str
     document_type: Optional[str] = None
     country: Optional[str] = None
+    file_path: str
 
     extracted_name: Optional[str] = None
     extracted_dob: Optional[datetime] = None
     extracted_id_number: Optional[str] = None
     extracted_expiry_date: Optional[datetime] = None
+
+    oce_confidence: float
+    authenticity_score: float
+    is_expired: bool
+    is_tampered: bool
 
     class Config:
         from_attributes = True
@@ -139,7 +181,7 @@ class BiometricSessionResponse(BaseModel):
     combined_liveness_score: float
     face_match_score: float
 
-    challenge_result: Optional[str] = None
+    challenge_result: Optional[float] = None
 
     created_at: datetime
 
