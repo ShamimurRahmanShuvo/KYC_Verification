@@ -22,6 +22,7 @@ class User(Base):
 
     roles = relationship("UserRole", back_populates="users")
     kyc_cases = relationship("KYCApplication", back_populates="user")
+    profile = relationship("UserProfile", uselist=False, back_populates="user")
 
 
 # Role definition for access control
@@ -50,6 +51,27 @@ class UserRole(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "role_id", name="uix_user_role"),
     )
+
+
+# Create user profiles for adding user details like name, address, etc.
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    first_name = Column(String(255), nullable=True)
+    last_name = Column(String(255), nullable=True)
+    date_of_birth = Column(DateTime, nullable=True)
+    phone_number = Column(String(20), nullable=True)
+    address = Column(Text, nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    country = Column(String(100), nullable=True)
+    postal_code = Column(String(20), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="profile")
 
 
 # KYC Application model

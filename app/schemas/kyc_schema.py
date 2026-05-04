@@ -62,6 +62,7 @@ class CurrentUserResponse(BaseModel):
     id: int
     username: str
     email: Optional[str] = None
+    user: Optional[UserResponse] = None
     roles: List[str]
 
     class Config:
@@ -81,10 +82,33 @@ class RoleRequest(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
 
 
+# User Schemas
+class UserCreateProfileRequest(BaseModel):
+    id: int
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    postal_code: Optional[str] = None
+
+
 class UserResponse(BaseModel):
     id: int
     username: str
     email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: Optional[str] = None
+    postal_code: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
