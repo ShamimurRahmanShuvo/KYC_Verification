@@ -1,58 +1,170 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, Query, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.core.database import SessionLocal
-from app.models.kyc_model import KYC
-from app.schemas.kyc_schema import AdminReviewRequest
+from app.core.database import get_db
+from app.models.kyc_model import KYCApplication, Document, AdminReview
+from app.schemas.kyc_schema import (
+    ReviewRequest,
+    ReviewResponse,
+    KYCDetailResponse,
+    PaginatedKYCApplicationsResponse,
+    AdminKYCItemResponse,
+)
+from app.core.auth import get_current_user, require_role
+from app.utils.pagination import paginate_query
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+@router.get("/kyc-applications", response_model=PaginatedKYCApplicationsResponse)
+def list_kyc_applications(page: int = Query(1, ge=1),
+                          size: int = Query(10, ge=1, le=100),
+                          db: Session = Depends(get_db),
+                          current_user=Depends(require_role("admin", "reviewer"))):
+    query = db.query(KYCApplication).order_by(KYCApplication.created_at.desc())
+
+    items, meta = paginate_query(query, page, size)
+
+    return {
+        **meta,
+        "items": items
+    }
 
 
-@router.post("/review/{kyc_id}")
-def review_kyc(kyc_id: int, payload: AdminReviewRequest, db: Session = Depends(get_db)):
-    row = db.query(KYC).filter(KYC.id == kyc_id).first()
+@router.get("/kyc-applications/search", response_model=List[AdminKYCItemResponse])
+def search_kyc_applications(status: str = None, id_number: str = None,
+                            db: Session = Depends(get_db),
+                            current_user=Depends(require_role("admin", "reviewer"))):
+    query = db.query(KYCApplication)
 
-    if not row:
-        raise HTTPException(404, "Record not found")
+    if status:
+        query = query.filter(KYCApplication.status == status)
+
+    results = query.all()
+
+    if id_number:
+        filtered = []
+
+        for item in results:
+            docs = db.query(Document).filter(
+                Document.kyc_application_id == item.id
+            ).all()
+
+            for doc in docs:
+                if doc.id_number == id_number:
+                    filtered.append(item)
+                    break
+        return filtered
+
+    return results
+
+
+@router.get("/kyc-applications/{kyc_id}", response_model=KYCDetailResponse)
+def get_kyc_detail(kyc_id: int,
+                   db: Session = Depends(get_db),
+                   current_user=Depends(require_role("admin", "reviewer"))):
+    kyc = db.query(KYCApplication).filter(
+        KYCApplication.id == kyc_id
+    ).first()
+
+    if not kyc:
+        raise HTTPException(404, "KYC application not found")
+
+    return kyc
+
+
+@router.post("/kyc-applications/{kyc_id}/approve", response_model=ReviewResponse)
+def approve_kyc(kyc_id: int,
+                payload: ReviewRequest,
+                db: Session = Depends(get_db),
+                current_user=Depends(require_role("admin", "reviewer"))):
+    kyc = db.query(KYCApplication).filter(
+        KYCApplication.id == kyc_id
+    ).first()
+
+    if not kyc:
+        raise HTTPException(404, "KYC application not found")
 
     if payload.action == "approve":
-        row.status = "verified"
-        row.verified = True
-        row.review_required = False
-        row.failure_reason = None
+        kyc.status = "verified"
+        kyc.verified = True
+        kyc.review_required = False
+        kyc.failure_reason = None
 
-    elif payload.action == "rejected":
-        row.status = "rejected"
-        row.verified = False
-        row.review_required = False
-        row.failure_reason = "Face mismatch"
+    elif payload.action == "reject":
+        kyc.status = "rejected"
+        kyc.verified = False
+        kyc.review_required = False
+        kyc.failure_reason = "Face mismatch"
 
     else:
         raise HTTPException(400, "Invalid action")
 
-    row.admin_notes = payload.notes
-    row.reviewed_by = payload.reviewer
-    row.reviewed_at = datetime.utcnow()
+    review = AdminReview(
+        kyc_application_id=kyc_id,
+        action=payload.action,
+        notes=payload.notes,
+        reviewed_by=current_user.username,
+        reviewed_at=datetime.utcnow()
+    )
 
+    db.add(review)
     db.commit()
-    db.refresh(row)
+    db.refresh(review)
 
-    return {
-        "id": row.id,
-        "status": row.status,
-        "reviewer": row.reviewed_by
-    }
+    return review
 
 
-@router.get("/records")
-def list_records(db: Session = Depends(get_db)):
-    return db.query(KYC).all()
+@router.post("/kyc-applications/{kyc_id}/reject", response_model=ReviewResponse)
+def reject_kyc(kyc_id: int,
+               payload: ReviewRequest,
+               db: Session = Depends(get_db),
+               current_user=Depends(require_role("admin", "reviewer"))):
+    kyc = db.query(KYCApplication).filter(
+        KYCApplication.id == kyc_id
+    ).first()
+
+    if not kyc:
+        raise HTTPException(404, "KYC application not found")
+
+    if payload.action == "approve":
+        kyc.status = "verified"
+        kyc.verified = True
+        kyc.review_required = False
+        kyc.failure_reason = None
+
+    elif payload.action == "reject":
+        kyc.status = "rejected"
+        kyc.verified = False
+        kyc.review_required = False
+        kyc.failure_reason = "Face mismatch"
+
+    else:
+        raise HTTPException(400, "Invalid action")
+
+    review = AdminReview(
+        kyc_application_id=kyc_id,
+        action=payload.action,
+        notes=payload.notes,
+        reviewed_by=current_user.username,
+        reviewed_at=datetime.utcnow()
+    )
+
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+
+    return review
+
+
+@router.get("/kyc-review-queue", response_model=List[AdminKYCItemResponse])
+def get_review_queue(db: Session = Depends(get_db),
+                     current_user=Depends(require_role("admin", "reviewer"))):
+    queue = db.query(KYCApplication).filter(
+        KYCApplication.status == "manual_review"
+    ).order_by(KYCApplication.created_at.asc()).all()
+
+    return queue
