@@ -1,99 +1,139 @@
 # KYC Verification Microservice
 
-Production-ready local KYC verification service built with **FastAPI**, **SQLite**, **Face Recognition**, and **OCR**.
-This service allows users to upload:
-- A live selfie photo
-- A government-issued ID image
+A production-focused KYC verification microservice built with FastAPI. It accepts a selfie and a government ID image, extracts and OCRs ID data, runs face comparison and liveness checks, and stores verification records.
 
-The system then:
-User uploads a selfie photo
-1. User uploads a government-issued ID 
-2. Detects and crops face from the ID card 
-3. Compares selfie vs ID face using facial recognition 
-4. Performs liveness detection to reduce spoofing attempts 
-5. Extracts ID data using OCR (Name, DOB, ID Number)
-6. Generates match score and verification result 
-7. Stores records securely in database
----
+Table of contents
+- Overview
+- Features
+- Tech stack
+- Quickstart (local)
+- Configuration
+- Running
+- API reference
+- Project structure
+- Production notes
+- Troubleshooting & tips
 
-# Tech Stack
+## Overview
+
+This service provides endpoints to submit KYC verification requests and to query stored verification records. Processing steps include:
+- ID image preprocessing (detect/crop face from ID)
+- OCR extraction of fields (name, DOB, ID number)
+- Face comparison between selfie and ID face
+- Liveness checks to mitigate spoofing
+- Persisting verification results and metadata
+
+## Features
+
+- Face verification (selfie vs cropped ID face)
+- OCR extraction for ID fields
+- Liveness detection hooks
+- REST API with auto-generated docs (Swagger / ReDoc)
+- SQLite for local development (configurable)
+- Pluggable services for storage and background jobs
+
+## Tech stack
+
+- Python 3.10+
 - FastAPI
-- Python
-- SQLite
-- SQLAlchemy
-- DeepFace
-- OpenCV
-- Tesseract OCR
-- Pydantic
 - Uvicorn
-- REST APIs
----
+- SQLAlchemy (ORM)
+- SQLite (default for local development)
+- DeepFace / OpenCV / MTCNN (face detection & matching)
+- Tesseract OCR
+- Pydantic for schemas
 
-# Features
-- Face verification (Selfie vs ID (Cropped image))
-- OCR extraction from ID card
-- SQLite local database
-- REST API with Swagger docs
-- File upload support
-- Persistent KYC records
-- Easy local setup
+## Quickstart (local)
 
-# Installation
-1. Clone Project
+1. Clone the repo and change to the backend folder:
+
+```bash
 git clone <your_repo_url>
-cd kyc-service
+cd KYC_Verification
+```
 
-2. Create Virtual Environment
+2. Create and activate a virtual environment:
 
 macOS / Linux
-- python3 -m venv venv
-- source venv/bin/activate
 
-Windows
-- python -m venv venv
-- venv\Scripts\activate
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-3. Install Dependencies
-- pip install -r requirements.txt
-- Install Tesseract OCR
-- Install mediapipe
-- Install mtcnn
+Windows (PowerShell)
 
-macOS
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
-- brew install tesseract
+3. Install Python dependencies:
 
-Ubuntu
-- sudo apt install tesseract-ocr
+```bash
+pip install -r requirements.txt
+```
 
-Windows
-- Install from official binary package.
+4. Install system dependencies (Tesseract OCR):
 
-**Run Application**
+macOS:
 
+```bash
+brew install tesseract
+```
+
+Ubuntu/Debian:
+
+```bash
+sudo apt update && sudo apt install -y tesseract-ocr libtesseract-dev
+```
+
+Windows: download and install from the official Tesseract project and add to PATH.
+
+## Configuration
+
+Configuration lives in `app/core/config.py`. Common env vars:
+
+- `DATABASE_URL` (default: SQLite file)
+- `SECRET_KEY` (used for any token generation)
+- `TESSERACT_CMD` (path to `tesseract` binary if non-standard)
+- `S3_BUCKET` / `STORAGE_BACKEND` (optional, for cloud storage)
+
+Set env vars locally (example):
+
+```bash
+export DATABASE_URL="sqlite:///./kyc.db"
+export TESSERACT_CMD="/usr/local/bin/tesseract"
+```
+
+## Running
+
+Run with Uvicorn (development):
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Or run the provided entrypoint:
+
+```bash
 python run.py
+```
 
-or
+Open API docs:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
-uvicorn app.main:app --reload
+## API reference
 
-**API Documentation**
-
-Swagger UI:
-
-http://localhost:8000/docs
-
-ReDoc:
-
-http://localhost:8000/redoc
-
-**API Endpoints**
 POST /kyc/verify
+- Description: Submit a verification request with `selfie` and `id_image` files (multipart/form-data).
+- Request fields: `selfie` (file), `id_image` (file), optional `metadata` (json)
+- Response: verification record including `kyc_id`, `verified` (bool), `match_score` (float), `liveness` (bool), and extracted `data` (name, dob, idn).
 
-Upload selfie and ID card for verification.
+Example response:
 
-Example Response
-
+```json
 {
   "kyc_id": 1,
   "verified": true,
@@ -101,76 +141,59 @@ Example Response
   "liveness": true,
   "review_required": false,
   "status": "verified",
-  "failure_reason": None,
+  "failure_reason": null,
   "data": {
-    "name": "Md Shamimur Rahman Shuvo",
-    "dob": "28th August ...",
+    "name": "Jane Doe",
+    "dob": "1990-01-01",
     "idn": "123456789"
   }
 }
+```
 
 GET /kyc/records
+- Returns a list of stored verification records (use pagination if many records).
 
-Returns all stored KYC verification records.
+Refer to the live Swagger UI for full request/response schemas and example payloads.
 
+## Project structure
 
-# Verification Logic
+- app/
+  - main.py                # FastAPI app and startup events
+  - core/                  # config, auth helpers, constants
+  - models/                # SQLAlchemy models
+  - routes/                # API route handlers
+  - schemas/               # Pydantic request/response schemas
+  - services/              # Business logic (OCR, face, storage, etc.)
+  - utils/                 # utility helpers (encryption, logging, pagination)
 
-Face comparison uses DeepFace.
+## Production considerations
 
-score = (1 - distance) * 100
+- Use a managed DB (Postgres) instead of SQLite for concurrency and reliability.
+- Serve with Uvicorn behind a process manager (Gunicorn + Uvicorn workers) or Kubernetes.
+- Enable HTTPS and use a secure object storage (S3) for images.
+- Encrypt sensitive data at rest and in transit.
+- Add authentication (JWT/OAuth2) and RBAC for admin endpoints.
+- Add rate limiting, request validation, and structured audit logging.
+- Move expensive work (OCR, face matching) to background workers (Celery/RQ).
 
-verified = score >= 75
+## Troubleshooting & tips
 
-Threshold can be customized.
+- Verify Tesseract is installed: `tesseract --version`
+- If face detection fails often, ensure images are clear and well-lit.
+- For numpy/DeepFace mismatches, pin compatible numpy version if needed.
+- Logs are written by `app/core/logger.py` — check logs for stack traces.
 
-# Important Notes
+## Tests
 
-Current version compares:
+Add or run unit/integration tests (not included by default). Consider adding tests for:
+- OCR extraction logic
+- Face comparison thresholds
+- API contract tests
 
-- Selfie image
-- Cropped image from ID card
+## Next steps / Improvements
 
-# Recommended production upgrade:
+- Add Dockerfile and docker-compose for local development
+- Add CI pipeline with tests and linting
+- Add admin UI for review and audit
 
-Security Recommendations
-
-# For real production use:
-
-- Encrypt uploaded images
-- Delete temp files after processing
-- Add JWT authentication
-- Add rate limiting
-- Add audit logs
-- Mask sensitive data
-- Use PostgreSQL instead of SQLite
-- Add HTTPS
-- Troubleshooting
-- DetachedInstanceError
-
-**Install OCR engine and verify:**
-
-- tesseract --version
-- Face Recognition Errors
-
-**Use supported image types:**
-
-- jpg
-- jpeg
-- png
-
-Ensure image contains visible face.
-
-NumPy Dependency Conflict
-pip install numpy==1.26.4
-# Future Improvements
-- Blink Detection
-- Head Turn Challenge
-- Anti-spoofing
-- Passport MRZ Parsing
-- Multi-language OCR
-- Admin Dashboard
-- Docker Support
-- Async SQLAlchemy
-- Celery Background Jobs
-- AWS S3 File Storage
+---
