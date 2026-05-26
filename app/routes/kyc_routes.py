@@ -23,10 +23,16 @@ router = APIRouter(prefix="/kyc", tags=["KYC"])
 @router.post("/create-kyc", response_model=KYCCaseResponse)
 def create_kyc_case(request: CreateKYCCaseRequest,
                     current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    # Check if user already has a KYC application
+    # Check if user already has a KYC application and return it instead of failing.
     existing = db.query(KYCApplication).filter_by(user_id=current_user.id).first()
     if existing:
-        raise HTTPException(status_code=400, detail="User already has a KYC application. Use update instead.")
+        return {
+            "id": existing.id,
+            "case_reference": existing.case_reference,
+            "status": existing.status,
+            "retry_count": existing.retry_count,
+            "created_at": existing.created_at,
+        }
 
     kyc_case = KYCApplication(
         user_id=current_user.id,
@@ -41,7 +47,13 @@ def create_kyc_case(request: CreateKYCCaseRequest,
     db.commit()
     db.refresh(kyc_case)
 
-    return kyc_case
+    return {
+        "id": kyc_case.id,
+        "case_reference": kyc_case.case_reference,
+        "status": kyc_case.status,
+        "retry_count": kyc_case.retry_count,
+        "created_at": kyc_case.created_at,
+    }
 
 
 @router.get("/my-applications", response_model=List[KYCCaseResponse])

@@ -82,6 +82,22 @@ class RoleRequest(BaseModel):
     name: str = Field(..., min_length=3, max_length=50)
 
 
+class UserRoleUpdateRequest(BaseModel):
+    roles: List[str] = Field(..., min_items=1)
+
+
+class AdminUserResponse(BaseModel):
+    id: int
+    username: str
+    email: Optional[str] = None
+    roles: List[str]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # User Schemas
 class UserCreateProfileRequest(BaseModel):
     id: int

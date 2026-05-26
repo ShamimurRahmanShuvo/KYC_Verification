@@ -29,6 +29,7 @@ This service provides endpoints to submit KYC verification requests and to query
 - OCR extraction for ID fields
 - Liveness detection hooks
 - REST API with auto-generated docs (Swagger / ReDoc)
+- Admin review and audit UI support via frontend for users with admin/reviewer roles
 - SQLite for local development (configurable)
 - Pluggable services for storage and background jobs
 
@@ -192,8 +193,30 @@ Add or run unit/integration tests (not included by default). Consider adding tes
 
 ## Next steps / Improvements
 
-- Add Dockerfile and docker-compose for local development
-- Add CI pipeline with tests and linting
-- Add admin UI for review and audit
+## Docker / Local development
 
+Use Docker and docker-compose to run the backend without installing Python dependencies or system packages locally.
+
+1. Build and start the service:
+
+```bash
+docker compose up --build
+```
+
+2. Open the API docs in your browser:
+
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+3. Stop the service:
+
+```bash
+docker compose down
+```
+
+The service mounts the repository into `/app` and persists uploads to `./uploads` on the host. The local SQLite database file `kyc.db` is also written to the project root.
+
+## Next steps / Improvements
+
+- Add CI pipeline with tests and linting
 ---
