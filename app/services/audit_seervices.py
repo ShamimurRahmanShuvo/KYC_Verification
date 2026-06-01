@@ -15,7 +15,7 @@ def log_audit_event(db, action, entity_type, entity_id, user_id, details=None):
         action=action,
         entity_type=entity_type,
         entity_id=entity_id,
-        user_id=user_id,
+        actor_user_id=user_id,
         details=serialize_details(details)
     )
     db.add(audit_event)

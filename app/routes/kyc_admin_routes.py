@@ -201,13 +201,13 @@ def approve_kyc(kyc_id: int,
     kyc.reviewed_at = datetime.utcnow()
 
     review = AdminReview(
-        kyc_application_id=kyc_id,
+        application_id=kyc_id,
         reviewer_id=current_user.id,
         action=payload.action,
         notes=payload.notes,
         previous_status=previous_status,
         new_status=kyc.status,
-        reviewed_by=current_user.username,
+        # reviewed_by=current_user.username,
         created_at=datetime.utcnow()
     )
 
@@ -301,7 +301,7 @@ def get_kyc_reviews(kyc_id: int,
                     db: Session = Depends(get_db),
                     current_user=Depends(require_role("admin", "reviewer"))):
     reviews = db.query(AdminReview).filter(
-        AdminReview.kyc_application_id == kyc_id
+        AdminReview.application_id == kyc_id
     ).order_by(AdminReview.created_at.desc()).all()
 
     return reviews

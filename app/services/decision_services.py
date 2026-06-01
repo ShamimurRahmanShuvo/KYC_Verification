@@ -1,5 +1,5 @@
 def auto_approve_band(score):
-    return score >= 85
+    return score >= 75
 
 
 def auto_reject_band(score):
